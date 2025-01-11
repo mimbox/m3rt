@@ -1,0 +1,90 @@
+#include "Adafruit_NECremote.h"  // Inclure la bibliothèque Adafruit NEC remote pour la communication IR
+
+#define IR_PIN 9 // Définir la broche pour le récepteur IR
+Adafruit_NECremote remote(IR_PIN);  // Initialiser l'objet récepteur IR avec la broche spécifiée
+
+// Broches du display à 7 segments
+#define SEG_A 2  // Broche pour le segment A
+#define SEG_B 3  // Broche pour le segment B
+#define SEG_C 4  // Broche pour le segment C
+#define SEG_D 5  // Broche pour le segment D
+#define SEG_E 6  // Broche pour le segment E
+#define SEG_F 7  // Broche pour le segment F
+#define SEG_G 8  // Broche pour le segment G
+
+// Mappages des segments pour un affichage à anode commune (logique inversée)
+const bool NUM_SEGMENTS[10][7] = {
+    {1, 1, 1, 1, 1, 1, 0}, // 0 (logique inversée pour anode commune)
+    {0, 1, 1, 0, 0, 0, 0}, // 1
+    {1, 1, 0, 1, 1, 0, 1}, // 2
+    {1, 1, 1, 1, 0, 0, 1}, // 3
+    {0, 1, 1, 0, 0, 1, 1}, // 4
+    {1, 0, 1, 1, 0, 1, 1}, // 5
+    {1, 0, 1, 1, 1, 1, 1}, // 6
+    {1, 1, 1, 0, 0, 0, 0}, // 7
+    {1, 1, 1, 1, 1, 1, 1}, // 8
+    {1, 1, 1, 1, 0, 1, 1}  // 9
+};
+
+// La fonction setup() s'exécute une fois au démarrage du programme
+void setup() {
+  Serial.begin(9600);  // Initialiser la communication série à 9600 bauds
+  Serial.println("Prêt à recevoir les signaux IR");  // Afficher un message sur le moniteur série
+
+  // Initialiser les broches du display à 7 segments
+  for (int i = SEG_A; i <= SEG_G; i++) {
+    pinMode(i, OUTPUT);  // Définir chaque broche de segment comme une sortie
+  }
+  clearDisplay();  // Effacer l'affichage du display à 7 segments (éteindre tous les segments initialement)
+}
+
+// La boucle principale s'exécute de manière répétée après la fonction setup()
+void loop() {
+  int code = remote.listen(5);  // Écouter les signaux IR pendant 5 secondes
+  
+  if (code >= 0) {  // Si un code IR valide est reçu
+    Serial.print("Code brut reçu : ");
+    Serial.println(code, HEX);  // Afficher le code IR brut en format hexadécimal
+
+    // Mapper le code IR brut à un nombre (0-9)
+    int number = mapIRCodeToNumber(code);
+    if (number >= 0) {  // Si un nombre valide est mappé
+      Serial.print("Affichage du nombre : ");
+      Serial.println(number);  // Afficher le nombre sur le moniteur série
+      displayNumber(number);  // Afficher le nombre correspondant sur le display à 7 segments
+    } else {
+      Serial.println("Code non reconnu");  // Si le code n'est pas reconnu, afficher un message d'erreur
+    }
+  }
+}
+
+// Fonction pour effacer l'affichage du display à 7 segments (éteindre tous les segments)
+void clearDisplay() {
+  for (int i = SEG_A; i <= SEG_G; i++) {
+    digitalWrite(i, HIGH);  // Mettre tous les segments à éteints pour une anode commune (HIGH éteint les segments)
+  }
+}
+
+// Fonction pour afficher un nombre (0-9) sur le display à 7 segments
+void displayNumber(int number) {
+  for (int i = 0; i < 7; i++) {
+    // Inverser la logique pour l'affichage à anode commune : 0 allume le segment, 1 l'éteint
+    digitalWrite(SEG_A + i, NUM_SEGMENTS[number][i] ? LOW : HIGH); 
+  }
+}
+
+// Fonction pour mapper le code IR brut à un nombre correspondant (0-9)
+int mapIRCodeToNumber(int code) {
+  switch (code) {  // Comparer le code reçu avec des codes IR prédéfinis
+    case 0xC: return 1;  // Si le code est 0xC, le mapper au nombre 1
+    case 0x18: return 2; // Si le code est 0x18, le mapper au nombre 2
+    case 0x5E: return 3; // Si le code est 0x5E, le mapper au nombre 3
+    case 0x8: return 4;  // Si le code est 0x8, le mapper au nombre 4
+    case 0x1C: return 5; // Si le code est 0x1C, le mapper au nombre 5
+    case 0x5A: return 6; // Si le code est 0x5A, le mapper au nombre 6
+    case 0x42: return 7; // Si le code est 0x42, le mapper au nombre 7
+    case 0x52: return 8; // Si le code est 0x52, le mapper au nombre 8
+    case 0x4A: return 9; // Si le code est 0x4A, le mapper au nombre 9
+    default: return -1;  // Si le code n'est pas reconnu, retourner -1
+  }
+}
